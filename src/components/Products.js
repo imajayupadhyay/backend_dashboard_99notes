@@ -4,6 +4,7 @@ import "../styles/Products.css";
 
 const Products = () => {
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [newProduct, setNewProduct] = useState({
     name: "",
     description: {
@@ -17,9 +18,13 @@ const Products = () => {
     imageUrl: "",
     categoryId: "",
   });
+
+  const [imageFile, setImageFile] = useState(null);
   const [editing, setEditing] = useState(null);
 
   const API_URL = "http://localhost:8080/products";
+  const UPLOAD_URL = "http://localhost:8080/products/uploadImage";
+  const CATEGORIES_API_URL = "http://localhost:8080/categories";
 
   // Fetch products
   const fetchProducts = async () => {
@@ -31,10 +36,43 @@ const Products = () => {
     }
   };
 
+
+  const fetchCategories = async () => {
+    try {
+      const response = await axios.get(CATEGORIES_API_URL);
+      setCategories(response.data); 
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
+  };
+
+  const uploadImage = async () => {
+    if (!imageFile) return "";
+
+    const formData = new FormData();
+    formData.append("image", imageFile);
+
+    try {
+      const response = await axios.post(UPLOAD_URL, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      return response.data; // Assuming the server returns the image URL
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      return "";
+    }
+  };
+
   // Add a product
   const addProduct = async () => {
+
+    const imageUrl = await uploadImage(); 
+
     const productData = {
       ...newProduct,
+      imageUrl,
       description: JSON.stringify(newProduct.description), // Convert description object to JSON string
       category: { id: newProduct.categoryId }, // Include category ID in the expected format
     };
@@ -50,8 +88,12 @@ const Products = () => {
 
   // Update a product
   const updateProduct = async (id) => {
+
+    const imageUrl = imageFile ? await uploadImage() : newProduct.imageUrl;
+
     const productData = {
       ...newProduct,
+      imageUrl,
       description: JSON.stringify(newProduct.description), // Convert description object to JSON string
       category: { id: newProduct.categoryId },
     };
@@ -91,10 +133,13 @@ const Products = () => {
       imageUrl: "",
       categoryId: "",
     });
+
+    setImageFile(null);
   };
 
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, []);
 
   return (
@@ -130,23 +175,24 @@ const Products = () => {
           }
         />
         <input
-          type="text"
-          placeholder="Image URL"
+          type="file"
           className="form-control mb-2"
-          value={newProduct.imageUrl}
-          onChange={(e) =>
-            setNewProduct({ ...newProduct, imageUrl: e.target.value })
-          }
+          onChange={(e) => setImageFile(e.target.files[0])} // Save the selected file
         />
-        <input
-          type="text"
-          placeholder="Category ID"
+         <select
           className="form-control mb-2"
           value={newProduct.categoryId}
           onChange={(e) =>
             setNewProduct({ ...newProduct, categoryId: e.target.value })
           }
-        />
+        >
+          <option value="">Select Category</option>
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
 
         {/* Description Fields */}
         <h4>Description</h4>
